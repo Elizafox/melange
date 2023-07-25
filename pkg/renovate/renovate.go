@@ -18,8 +18,9 @@ import (
 	"context"
 	"os"
 
+	"chainguard.dev/melange/pkg/confloader"
+
 	"github.com/chainguard-dev/yam/pkg/yam/formatted"
-	"gopkg.in/yaml.v3"
 )
 
 // Context contains the default settings for renovations.
@@ -54,7 +55,7 @@ func New(opts ...Option) (*Context, error) {
 // ongoing renovation.
 type RenovationContext struct {
 	Context *Context
-	Root    yaml.Node
+	Config *confloader.LoadedConfig
 }
 
 // Renovator performs a renovation.
@@ -84,14 +85,12 @@ func (c *Context) Renovate(ctx context.Context, renovators ...Renovator) error {
 
 // LoadConfig loads the configuration data into an AST for renovation.
 func (rc *RenovationContext) LoadConfig() error {
-	configData, err := os.ReadFile(rc.Context.ConfigFile)
+	cfg, err := confloader.LoadConfig(rc.Context.ConfigFile)
 	if err != nil {
 		return err
 	}
 
-	if err := yaml.Unmarshal(configData, &rc.Root); err != nil {
-		return err
-	}
+	rc.Config = cfg
 
 	return nil
 }
@@ -107,7 +106,7 @@ func (rc *RenovationContext) WriteConfig() error {
 
 	enc := formatted.NewEncoder(configFile).AutomaticConfig()
 
-	if err := enc.Encode(rc.Root.Content[0]); err != nil {
+	if err := enc.Encode(rc.Config.Root.Content[0]); err != nil {
 		return err
 	}
 
